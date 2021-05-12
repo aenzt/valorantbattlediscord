@@ -6,7 +6,7 @@ from discord.activity import Activity
 from discord.ext import commands
 import random
 import pymongo
-from pymongo import MongoClient
+from pymongo import MongoClient 
 import configparser
 
 description = '''An example bot to showcase the discord.ext.commands extension
@@ -18,7 +18,7 @@ config.read('config.ini')
 token = config.get('auth', 'discordtoken')
 mongosrv = config.get('auth', 'mongosrv')
 
-cluster = MongoClient(mongosrv)
+cluster = MongoClient(mongosrv, tls=True, tlsAllowInvalidCertificates=True)
 db = cluster['ValorantBot']
 collection = db['agent']
 user_coll = db['user']
