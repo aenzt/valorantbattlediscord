@@ -45,7 +45,7 @@ async def register(ctx):
         "_id" : id_user,
         "name" : name_user,
         "points" : 0,
-        "agents" : {}
+        "agents" : []
         }
         user_coll.insert_one(post)
         await ctx.send("Sucessfully Registered")
@@ -56,26 +56,46 @@ async def register(ctx):
 async def profile(ctx):
     id_user = ctx.message.author.id
     data_user = user_coll.find_one({"_id" : id_user})
-    namauser = data_user['name']
-    point = data_user['points']
-    id_user = data_user['_id']
-    
-    author_ava = ctx.message.author.avatar_url
-    embed = makeembeduser(ctx, namauser, author_ava, point)
-    await ctx.send(embed=embed)
+    if data_user == None:
+        await ctx.send("You must register first!")
+    else:
+        namauser = data_user['name']
+        point = data_user['points']
+        id_user = data_user['_id']
+        
+        author_ava = ctx.message.author.avatar_url
+        embed = makeembeduser(ctx, namauser, author_ava, point)
+        await ctx.send(embed=embed)
 
 @bot.command()
 async def gacha(ctx):
-    judul_data = collection.aggregate([{"$sample":{"size":1}}])
-    print(judul_data)
-    for result in judul_data :
-        judul = result['name']
-        ava_url = result['ava_URL']
-        rating = result['rating']
-        tipe = result['type']
-    embed = makeembedagent(ctx, judul, ava_url, rating, tipe)
-
-    await ctx.send(embed=embed)
+    id_user = ctx.message.author.id
+    data_user_query = user_coll.find_one({"_id" : id_user})
+    if data_user_query == None:
+        await ctx.send("You must register first!")
+    else:
+        judul_data = collection.aggregate([{"$sample":{"size":1}}])
+        print(judul_data)
+        rating = random.randint(0,20)
+        for result in judul_data :
+            judul = result['name']
+            ava_url = result['ava_URL']
+            rating = rating
+            tipe = result['type']
+        embed = makeembedagent(ctx, judul, ava_url, rating, tipe)
+        data_user_query = user_coll.find_one({"_id" : id_user})
+        data_user_new = data_user_query["agents"]
+        add_agent = True
+        for i in data_user_new:
+            if i[0] == result['name']:
+                add_agent = False
+                break
+        if add_agent:
+            data_user_new.append([result['name'],rating])
+        else:
+            await ctx.send("udah punya idk nanti nanya kalau mau replace atau kgk")
+        user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
+        await ctx.send(embed=embed)
 
 def makeembedagent(ctx, judul, ava_url, rating, tipe):
     embed = discord.Embed(
@@ -99,12 +119,20 @@ def makeembeduser(ctx, name, user_url, point):
     )
     author = ctx.message.author.name
     author_ava = ctx.message.author.avatar_url
+    id_user = ctx.message.author.id
+    user_agents = user_coll.find_one({"_id" : id_user})["agents"]
+    owned_agents = ""
+    if len(user_agents) > 0:
+        for i in user_agents:    
+            owned_agents += i[0] + " [" + str(i[1]) + "]\n"
+    else: 
+        owned_agents = "This user has no agents!"
 
     embed.set_footer(text="©Valorant BattleBot")
     embed.set_image(url=user_url)
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Point', value=point, inline=True)
-    embed.add_field(name='Owned', value="Not Found", inline=False)
+    embed.add_field(name='Owned', value=owned_agents, inline=False)
     embed.add_field(name='Cooldown 1', value="Not Found", inline=True)
     embed.add_field(name='Cooldown 2', value="Not Found", inline=True)
     embed.add_field(name='Cooldown 3', value="Not Found", inline=True)
