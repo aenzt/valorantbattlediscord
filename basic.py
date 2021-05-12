@@ -75,14 +75,14 @@ async def gacha(ctx):
         await ctx.send("You must register first!")
     else:
         judul_data = collection.aggregate([{"$sample":{"size":1}}])
-        print(judul_data)
         rating = random.randint(0,20)
         for result in judul_data :
             judul = result['name']
             ava_url = result['ava_URL']
             rating = rating
             tipe = result['type']
-        embed = makeembedagent(ctx, judul, ava_url, rating, tipe)
+        rarity = getRarity()
+        embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rarity)
         data_user_query = user_coll.find_one({"_id" : id_user})
         data_user_new = data_user_query["agents"]
         add_agent = True
@@ -91,13 +91,35 @@ async def gacha(ctx):
                 add_agent = False
                 break
         if add_agent:
-            data_user_new.append([result['name'],rating])
+            data_user_new.append([result['name'],rating, rarity])
         else:
             await ctx.send("udah punya idk nanti nanya kalau mau replace atau kgk")
         user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
         await ctx.send(embed=embed)
 
-def makeembedagent(ctx, judul, ava_url, rating, tipe):
+def getRarity():
+    rarity_int = random.randint(1,1000)
+    if rarity_int == 1000:
+        rarity = "Symshini"
+    elif rarity_int > 995:
+        rarity = "Radiant"
+    elif rarity_int > 970:
+        rarity = "Immortal"
+    elif rarity_int > 900:
+        rarity = "Diamond"
+    elif rarity_int > 800:
+        rarity = "Platinum"
+    elif rarity_int > 640:
+        rarity = "Gold"
+    elif rarity_int > 460:
+        rarity = "Silver"
+    elif rarity_int > 260:
+        rarity = "Bronze"
+    else:
+        rarity = "Iron"
+    return rarity
+
+def makeembedagent(ctx, judul, ava_url, rating, tipe, rarity):
     embed = discord.Embed(
         title=judul,
         colour = discord.Colour.blue()
@@ -109,6 +131,7 @@ def makeembedagent(ctx, judul, ava_url, rating, tipe):
     embed.set_image(url=ava_url)
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Rating', value=rating, inline=True)
+    embed.add_field(name='Rarity', value=rarity, inline=True)
     embed.add_field(name='Type', value=tipe, inline=True)
     return embed
 
@@ -124,7 +147,7 @@ def makeembeduser(ctx, name, user_url, point):
     owned_agents = ""
     if len(user_agents) > 0:
         for i in user_agents:    
-            owned_agents += i[0] + " [" + str(i[1]) + "]\n"
+            owned_agents += i[0] + " [" + str(i[1]) + "] " + "`" + i[2] + "`\n"
     else: 
         owned_agents = "This user has no agents!"
 
