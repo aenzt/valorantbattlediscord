@@ -7,12 +7,18 @@ from discord.ext import commands
 import random
 import pymongo
 from pymongo import MongoClient
+import configparser
 
 description = '''An example bot to showcase the discord.ext.commands extension
 module.
 There are a number of utility commands being showcased here.'''
 
-cluster = MongoClient("mongodb+srv://aenzt:katasandi321@cluster0.gichf.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+config = configparser.ConfigParser()
+config.read('config.ini')
+token = config.get('auth', 'discordtoken')
+mongosrv = config.get('auth', 'mongosrv')
+
+cluster = MongoClient(mongosrv)
 db = cluster['ValorantBot']
 collection = db['agent']
 
@@ -105,4 +111,4 @@ async def _bot(ctx):
     """Is the bot cool?"""
     await ctx.send('Yes, the bot is cool.')
 
-bot.run('NzAyOTI4Njg3NDA1OTg5OTE4.XqHLWg.VtAhqiX7_E5u-rzzkCDrrmJP1CY')
+bot.run(token)
