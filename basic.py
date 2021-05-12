@@ -107,7 +107,7 @@ def makeembeduser(ctx, name, user_url, point):
     embed.add_field(name='Owned', value="Not Found", inline=False)
     embed.add_field(name='Cooldown 1', value="Not Found", inline=True)
     embed.add_field(name='Cooldown 2', value="Not Found", inline=True)
-    embed.add_field(name='Cooldown 3', value="404 Not Found", inline=True)
+    embed.add_field(name='Cooldown 3', value="404 Not y Found", inline=True)
     return embed
 
 @bot.command()
