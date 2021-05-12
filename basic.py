@@ -44,7 +44,8 @@ async def register(ctx):
         post = {
         "_id" : id_user,
         "name" : name_user,
-        "points" : 0
+        "points" : 0,
+        "agents" : {}
         }
         user_coll.insert_one(post)
         await ctx.send("Sucessfully Registered")
