@@ -70,7 +70,7 @@ async def gacha(ctx):
     id_user = ctx.message.author.id
     data_user_query = user_coll.find_one({"_id" : id_user})
     if data_user_query == None:
-        await ctx.send("You must register first!")
+        await ctx.send("You must register first!, `?register`")
     else:
         roll = random.randint(1,100)
         if roll > 80: # Rolled an agent
@@ -83,7 +83,6 @@ async def gacha(ctx):
                 tipe = result['type']
             rank = 0
             embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
-            data_user_query = user_coll.find_one({"_id" : id_user})
             data_user_new = data_user_query["agents"]
             add_agent = True
             agent_idx = 0
@@ -135,7 +134,7 @@ def make_embed_weapon(ctx, weapon_type, weapon_name, img_url, rarity):
     author = ctx.message.author.name
     author_ava = ctx.message.author.avatar_url
 
-    embed.set_footer(text="©Riot Games")
+    embed.set_footer(text="©Valorant BattleBot")
     embed.set_image(url=img_url)
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Skin', value=weapon_name, inline=True)
@@ -146,7 +145,7 @@ def make_embed_dupe(ctx, judul, ava_url, rating, tipe, rank):
     embed=discord.Embed(title=judul+"\n`(Duplicate Received)`",colour = discord.Colour.blue())
     embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.avatar_url)
     embed.set_image(url = ava_url)
-    embed.set_footer(text="©Riot Games")
+    embed.set_footer(text="©Valorant BattleBot")
     #tiga line di bawah untuk nampilin stats agent nya menurut gw mending gk usah tapi idk
     #embed.add_field(name='Rating', value=rating)
     #embed.add_field(name='Rank', value=ranks[rank])
@@ -162,7 +161,7 @@ def makeembedagent(ctx, judul, ava_url, rating, tipe, rank):
     author_ava = ctx.message.author.avatar_url
     rank_string = ranks[rank]
 
-    embed.set_footer(text="©Riot Games")
+    embed.set_footer(text="©Valorant BattleBot")
     embed.set_image(url=ava_url)
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Rating', value=rating, inline=True)
