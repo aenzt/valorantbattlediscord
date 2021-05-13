@@ -23,7 +23,7 @@ ranks = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Immortal', 
 intents = discord.Intents.default()
 intents.members = True
 
-bot = commands.Bot(command_prefix='?', description=description, intents=intents)
+bot = commands.Bot(command_prefix='?', intents=intents)
 
 @bot.event
 async def on_ready():
@@ -38,13 +38,13 @@ async def register(ctx):
     id_user = ctx.message.author.id
     name_user = ctx.message.author.name
     if user_coll.count_documents({'_id': id_user }, limit = 1) != 1:
-        post = {
+        user = {
         "_id" : id_user,
         "name" : name_user,
         "points" : 0,
         "agents" : []
         }
-        user_coll.insert_one(post)
+        user_coll.insert_one(user)
         await ctx.send("Sucessfully Registered")
     else :
         await ctx.send("Already Registered")
@@ -84,18 +84,18 @@ async def gacha(ctx):
         add_agent = True
         agent_idx = 0
         for i in range(len(data_user_new)):
-            if data_user_new[i][0] == result['name']:
+            if data_user_new[i]["name"] == result['name']:
                 agent_idx = i
                 add_agent = False
                 break
         if add_agent:
             await ctx.send(embed=embed)
-            data_user_new.append([result['name'],rating, rank])
+            data_user_new.append({"name": result['name'],"rating": rating, "rank": rank})
         else:
-            embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx][1], tipe, data_user_new[agent_idx][2])
-            if data_user_new[agent_idx][2] < 7:
-                data_user_new[agent_idx][2] += 1 
-                embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx][2]] + "."
+            embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
+            if data_user_new[agent_idx]["rank"] < 7:
+                data_user_new[agent_idx]["rank"] += 1 
+                embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx]["rank"]] + "."
             else:
                 embed_dupe.description = "Congratulations! Your " + judul + " has already \nreached the highest rank.\n (kasih vp atau apa gitu idk)."
             await ctx.send(embed=embed_dupe)
@@ -141,7 +141,7 @@ def makeembeduser(ctx, name, user_url, point):
     owned_agents = ""
     if len(user_agents) > 0:
         for i in user_agents:    
-            owned_agents += i[0] + " [" + str(i[1]) + "] " + "`" + ranks[i[2]] + "`\n"
+            owned_agents += i["name"] + " [" + str(i["rating"]) + "] " + "`" + ranks[i["rank"]] + "`\n"
     else: 
         owned_agents = "This user has no agents!"
 
