@@ -9,10 +9,6 @@ import pymongo
 from pymongo import MongoClient 
 import configparser
 
-description = '''An example bot to showcase the discord.ext.commands extension
-module.
-There are a number of utility commands being showcased here.'''
-
 config = configparser.ConfigParser()
 config.read('config.ini')
 token = config.get('auth', 'discordtoken')
@@ -22,6 +18,7 @@ cluster = MongoClient(mongosrv, tls=True, tlsAllowInvalidCertificates=True)
 db = cluster['ValorantBot']
 collection = db['agent']
 user_coll = db['user']
+ranks = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Immortal', 'Radiant']
 
 intents = discord.Intents.default()
 intents.members = True
@@ -79,59 +76,56 @@ async def gacha(ctx):
         for result in judul_data :
             judul = result['name']
             ava_url = result['ava_URL']
-            rating = rating
             tipe = result['type']
-        rarity = getRarity()
-        embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rarity)
+        rank = 0
+        embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
         data_user_query = user_coll.find_one({"_id" : id_user})
         data_user_new = data_user_query["agents"]
         add_agent = True
-        for i in data_user_new:
-            if i[0] == result['name']:
+        agent_idx = 0
+        for i in range(len(data_user_new)):
+            if data_user_new[i][0] == result['name']:
+                agent_idx = i
                 add_agent = False
                 break
         if add_agent:
-            data_user_new.append([result['name'],rating, rarity])
+            await ctx.send(embed=embed)
+            data_user_new.append([result['name'],rating, rank])
         else:
-            await ctx.send("udah punya idk nanti nanya kalau mau replace atau kgk")
+            embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx][1], tipe, data_user_new[agent_idx][2])
+            if data_user_new[agent_idx][2] < 7:
+                data_user_new[agent_idx][2] += 1 
+                embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx][2]] + "."
+            else:
+                embed_dupe.description = "Congratulations! Your " + judul + " has already \nreached the highest rank.\n (kasih vp atau apa gitu idk)."
+            await ctx.send(embed=embed_dupe)
         user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
-        await ctx.send(embed=embed)
 
-def getRarity():
-    rarity_int = random.randint(1,1000)
-    if rarity_int == 1000:
-        rarity = "Symshini"
-    elif rarity_int > 995:
-        rarity = "Radiant"
-    elif rarity_int > 970:
-        rarity = "Immortal"
-    elif rarity_int > 900:
-        rarity = "Diamond"
-    elif rarity_int > 800:
-        rarity = "Platinum"
-    elif rarity_int > 640:
-        rarity = "Gold"
-    elif rarity_int > 460:
-        rarity = "Silver"
-    elif rarity_int > 260:
-        rarity = "Bronze"
-    else:
-        rarity = "Iron"
-    return rarity
+def make_embed_dupe(ctx, judul, ava_url, rating, tipe, rank):
+    embed=discord.Embed(title=judul+"\n`(Duplicate Received)`",colour = discord.Colour.blue())
+    embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.avatar_url)
+    embed.set_image(url = ava_url)
+    embed.set_footer(text="©Riot Games")
+    #tiga line di bawah untuk nampilin stats agent nya menurut gw mending gk usah tapi idk
+    #embed.add_field(name='Rating', value=rating)
+    #embed.add_field(name='Rank', value=ranks[rank])
+    #embed.add_field(name='Type', value=tipe)
+    return embed
 
-def makeembedagent(ctx, judul, ava_url, rating, tipe, rarity):
+def makeembedagent(ctx, judul, ava_url, rating, tipe, rank):
     embed = discord.Embed(
         title=judul,
         colour = discord.Colour.blue()
     )
     author = ctx.message.author.name
     author_ava = ctx.message.author.avatar_url
+    rank_string = ranks[rank]
 
     embed.set_footer(text="©Riot Games")
     embed.set_image(url=ava_url)
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Rating', value=rating, inline=True)
-    embed.add_field(name='Rarity', value=rarity, inline=True)
+    embed.add_field(name='Rank', value=rank_string, inline=True)
     embed.add_field(name='Type', value=tipe, inline=True)
     return embed
 
@@ -147,7 +141,7 @@ def makeembeduser(ctx, name, user_url, point):
     owned_agents = ""
     if len(user_agents) > 0:
         for i in user_agents:    
-            owned_agents += i[0] + " [" + str(i[1]) + "] " + "`" + i[2] + "`\n"
+            owned_agents += i[0] + " [" + str(i[1]) + "] " + "`" + ranks[i[2]] + "`\n"
     else: 
         owned_agents = "This user has no agents!"
 
