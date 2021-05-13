@@ -18,6 +18,7 @@ cluster = MongoClient(mongosrv, tls=True, tlsAllowInvalidCertificates=True)
 db = cluster['ValorantBot']
 collection = db['agent']
 user_coll = db['user']
+weapons = db['weapons']
 ranks = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Immortal', 'Radiant']
 
 intents = discord.Intents.default()
@@ -71,35 +72,75 @@ async def gacha(ctx):
     if data_user_query == None:
         await ctx.send("You must register first!")
     else:
-        judul_data = collection.aggregate([{"$sample":{"size":1}}])
-        rating = random.randint(0,20)
-        for result in judul_data :
-            judul = result['name']
-            ava_url = result['ava_URL']
-            tipe = result['type']
-        rank = 0
-        embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
-        data_user_query = user_coll.find_one({"_id" : id_user})
-        data_user_new = data_user_query["agents"]
-        add_agent = True
-        agent_idx = 0
-        for i in range(len(data_user_new)):
-            if data_user_new[i]["name"] == result['name']:
-                agent_idx = i
-                add_agent = False
-                break
-        if add_agent:
-            await ctx.send(embed=embed)
-            data_user_new.append({"name": result['name'],"rating": rating, "rank": rank})
-        else:
-            embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
-            if data_user_new[agent_idx]["rank"] < 7:
-                data_user_new[agent_idx]["rank"] += 1 
-                embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx]["rank"]] + "."
+        roll = random.randint(1,100)
+        if roll > 80: # Rolled an agent
+            print("Rolled agent!")
+            judul_data = collection.aggregate([{"$sample":{"size":1}}])
+            rating = random.randint(0,20)
+            for result in judul_data :
+                judul = result['name']
+                ava_url = result['ava_URL']
+                tipe = result['type']
+            rank = 0
+            embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
+            data_user_query = user_coll.find_one({"_id" : id_user})
+            data_user_new = data_user_query["agents"]
+            add_agent = True
+            agent_idx = 0
+            for i in range(len(data_user_new)):
+                if data_user_new[i]["name"] == result['name']:
+                    agent_idx = i
+                    add_agent = False
+                    break
+            if add_agent:
+                await ctx.send(embed=embed)
+                data_user_new.append({"name": result['name'],"rating": rating, "rank": rank})
             else:
-                embed_dupe.description = "Congratulations! Your " + judul + " has already \nreached the highest rank.\n (kasih vp atau apa gitu idk)."
-            await ctx.send(embed=embed_dupe)
-        user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
+                embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
+                if data_user_new[agent_idx]["rank"] < 7:
+                    data_user_new[agent_idx]["rank"] += 1 
+                    embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx]["rank"]] + "."
+                else:
+                    embed_dupe.description = "Congratulations! Your " + judul + " has already \nreached the highest rank.\n (kasih vp atau apa gitu idk)."
+                await ctx.send(embed=embed_dupe)
+            user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
+        else: # Rolled a weapon
+            print("Rolled weapon!")
+            weapon_type = weapons.aggregate([{"$sample":{"size":1}}])
+            weapon_type = list(weapon_type)[0]
+            weapon, rarity = get_random_weapon(weapon_type)
+            embed_weapon = make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
+            await ctx.send(embed=embed_weapon)
+
+def get_random_weapon(weapon_type):
+    rarity_int = random.randint(1,100)
+    if rarity_int > 98 and weapon_type["Exclusive"] != None:
+        return random.choice(weapon_type["Exclusive"]), "Exclusive"
+    elif rarity_int > 93:
+        return random.choice(weapon_type["Ultra"]), "Ultra"
+    elif rarity_int > 85:
+        return random.choice(weapon_type["Premium"]), "Premium"
+    elif rarity_int > 70:
+        return random.choice(weapon_type["Deluxe"]), "Deluxe"
+    elif rarity_int > 50:
+        return random.choice(weapon_type["Select"]), "Select"
+    else:
+        return weapon_type["Default"][0], "Default"
+
+def make_embed_weapon(ctx, weapon_type, weapon_name, img_url, rarity):
+    embed = discord.Embed(
+        title=weapon_type,
+        colour = discord.Colour.blue()
+    )
+    author = ctx.message.author.name
+    author_ava = ctx.message.author.avatar_url
+
+    embed.set_footer(text="©Riot Games")
+    embed.set_image(url=img_url)
+    embed.set_author(name=author, icon_url=author_ava)
+    embed.add_field(name='Skin', value=weapon_name, inline=True)
+    embed.add_field(name='Rarity', value=rarity, inline=True)
+    return embed
 
 def make_embed_dupe(ctx, judul, ava_url, rating, tipe, rank):
     embed=discord.Embed(title=judul+"\n`(Duplicate Received)`",colour = discord.Colour.blue())
