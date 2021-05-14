@@ -8,6 +8,7 @@ import random
 import pymongo
 from pymongo import MongoClient 
 import configparser
+from datetime import datetime
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -43,9 +44,11 @@ async def register(ctx):
         "_id" : id_user,
         "name" : name_user,
         "points" : 0,
-        "agents" : []
+        "agents" : [],
+        "cooldowns" : {}
         }
         user_coll.insert_one(user)
+        set_default_cooldown(ctx)
         await ctx.send("Sucessfully Registered")
     else :
         await ctx.send("Already Registered")
@@ -54,6 +57,7 @@ async def register(ctx):
 async def profile(ctx):
     id_user = ctx.message.author.id
     data_user = user_coll.find_one({"_id" : id_user})
+    data_user_cooldowns = data_user['cooldowns'] 
     if data_user == None:
         await ctx.send("You must register first!")
     else:
@@ -62,16 +66,25 @@ async def profile(ctx):
         id_user = data_user['_id']
         
         author_ava = ctx.message.author.avatar_url
-        embed = makeembeduser(ctx, namauser, author_ava, point)
+        embed = makeembeduser(ctx, namauser, author_ava, point, data_user_cooldowns)
         await ctx.send(embed=embed)
 
 @bot.command()
 async def gacha(ctx):
     id_user = ctx.message.author.id
     data_user_query = user_coll.find_one({"_id" : id_user})
+    time_now = datetime.utcnow()
     if data_user_query == None:
         await ctx.send("You must register first!, `?register`")
     else:
+        data_user_cooldowns = data_user_query['cooldowns']   
+        for i in data_user_cooldowns:
+            if i == "gacha" :
+                time_diff = (time_now - data_user_cooldowns[i]).total_seconds()
+                if time_diff<86400 :
+                    await ctx.send("Still in Cooldown, Wait " + str(int(24 - time_diff/3600)) + " hours " + str(int((60 - time_diff/60)%60)) + " minutes")
+                    return
+        set_cooldown_now(ctx, "gacha", data_user_cooldowns)
         roll = random.randint(1,100)
         if roll > 80: # Rolled an agent
             print("Rolled agent!")
@@ -83,7 +96,7 @@ async def gacha(ctx):
                 tipe = result['type']
             rank = 0
             embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
-            data_user_new = data_user_query["agents"]
+            data_user_new = data_user_query["agents"]   
             add_agent = True
             agent_idx = 0
             for i in range(len(data_user_new)):
@@ -110,6 +123,21 @@ async def gacha(ctx):
             weapon, rarity = get_random_weapon(weapon_type)
             embed_weapon = make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
             await ctx.send(embed=embed_weapon)
+
+def set_default_cooldown(ctx):
+    id_user = ctx.message.author.id
+    default_time = datetime(1970,1,1)
+    coolkids = {
+        "gacha" : default_time,
+    }
+    user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": coolkids}})
+
+def set_cooldown_now(ctx, cooldown_type, data_user_cooldown):
+    id_user = ctx.message.author.id
+    for i in data_user_cooldown:
+        if i == cooldown_type:
+            data_user_cooldown[i] = datetime.utcnow()
+    user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": data_user_cooldown}})
 
 def get_random_weapon(weapon_type):
     rarity_int = random.randint(1,100)
@@ -169,7 +197,7 @@ def makeembedagent(ctx, judul, ava_url, rating, tipe, rank):
     embed.add_field(name='Type', value=tipe, inline=True)
     return embed
 
-def makeembeduser(ctx, name, user_url, point):
+def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
     embed = discord.Embed(
         title=name,
         colour = discord.Colour.blue()
@@ -177,6 +205,12 @@ def makeembeduser(ctx, name, user_url, point):
     author = ctx.message.author.name
     author_ava = ctx.message.author.avatar_url
     id_user = ctx.message.author.id
+    time_now = datetime.utcnow()
+    time_diff_gacha = (time_now - data_user_cooldown["gacha"]).total_seconds()
+    if time_diff_gacha > 86400 :
+        time_diff_gacha_string = "`READY`"
+    else :
+        time_diff_gacha_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
     user_agents = user_coll.find_one({"_id" : id_user})["agents"]
     owned_agents = ""
     if len(user_agents) > 0:
@@ -190,9 +224,7 @@ def makeembeduser(ctx, name, user_url, point):
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Point', value=point, inline=True)
     embed.add_field(name='Owned', value=owned_agents, inline=False)
-    embed.add_field(name='Cooldown 1', value="Not Found", inline=True)
-    embed.add_field(name='Cooldown 2', value="Not Found", inline=True)
-    embed.add_field(name='Cooldown 3', value="Not Found", inline=True)
+    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nGoblok \t:", inline=False)
     return embed
 
 @bot.command()
