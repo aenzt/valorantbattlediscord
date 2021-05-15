@@ -107,7 +107,7 @@ async def gacha(ctx):
             weapon_type = cfg.weapons.aggregate([{"$sample":{"size":1}}])
             weapon_type = list(weapon_type)[0]
             weapon, rarity = get_random_weapon(weapon_type)
-            embed_weapon = cfg.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
+            embed_weapon = emb.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
             await ctx.send(embed=embed_weapon)
 
 def get_random_weapon(weapon_type):
@@ -145,5 +145,10 @@ async def daily(ctx):
         new_point_user = point_user + 5
         cfg.user_coll.update_one({'_id': id_user}, { "$set": {"points": new_point_user}})
         await ctx.send("Successfully claimed daily reward, got 5 points")
+
+@bot.command()
+async def list(ctx):
+    embed = emb.makeembedlist(ctx)
+    await ctx.send(embed=embed)
 
 bot.run(cfg.token)

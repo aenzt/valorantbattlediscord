@@ -50,9 +50,8 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
         title=name,
         colour = discord.Colour.blue()
     )
-    author = ctx.message.author.name
-    author_ava = ctx.message.author.avatar_url
-    id_user = ctx.message.author.id
+    # author = ctx.message.author.name
+    # author_ava = ctx.message.author.avatar_url
     time_now = datetime.utcnow()
     time_diff_gacha = (time_now - data_user_cooldown["gacha"]).total_seconds()
     time_diff_daily = (time_now - data_user_cooldown["daily"]).total_seconds()
@@ -64,18 +63,28 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
         time_diff_daily_string = "`READY`"
     else :
         time_diff_daily_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
+
+    embed.set_footer(text="©Valorant BattleBot")
+    embed.set_image(url=user_url)
+    embed.add_field(name='Point', value=point, inline=True)
+    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nDaily \t:" + time_diff_daily_string, inline=False)
+    return embed
+
+def makeembedlist(ctx):
+    author = ctx.message.author.name
+    embed = discord.Embed(
+        title=author + "- Collection",
+        colour = discord.Colour.blue()
+    )
+    id_user = ctx.message.author.id
     user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"]
     owned_agents = ""
     if len(user_agents) > 0:
         for i in user_agents:    
             owned_agents += i["name"] + " [" + str(i["rating"]) + "] " + "`" + cfg.ranks[i["rank"]] + "`\n"
+            embed.add_field(name='Owned', value=owned_agents, inline=True)
     else: 
         owned_agents = "This user has no agents!"
-
+        embed.add_field(name='Owned', value=owned_agents, inline=True)
     embed.set_footer(text="©Valorant BattleBot")
-    embed.set_image(url=user_url)
-    embed.set_author(name=author, icon_url=author_ava)
-    embed.add_field(name='Point', value=point, inline=True)
-    embed.add_field(name='Owned', value=owned_agents, inline=False)
-    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nDaily \t:" + time_diff_daily_string, inline=False)
     return embed
