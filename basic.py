@@ -6,6 +6,7 @@ import random
 from datetime import datetime
 import config as cfg
 import embedded as emb
+import cooldown as cd
 
 intents = discord.Intents.default()
 intents.members = True
@@ -33,7 +34,7 @@ async def register(ctx):
         "cooldowns" : {}
         }
         cfg.user_coll.insert_one(user)
-        set_default_cooldown(ctx)
+        cd.set_default_cooldown(ctx)
         await ctx.send("Sucessfully Registered")
     else :
         await ctx.send("Already Registered")
@@ -69,7 +70,7 @@ async def gacha(ctx):
                 if time_diff<86400 :
                     await ctx.send("Still in Cooldown, Wait " + str(int(24 - time_diff/3600)) + " hours " + str(int((60 - time_diff/60)%60)) + " minutes")
                     return
-        set_cooldown_now(ctx, "gacha", data_user_cooldowns)
+        cd.set_cooldown_now(ctx, "gacha", data_user_cooldowns)
         roll = random.randint(1,100)
         if roll > 80: # Rolled an agent
             print("Rolled agent!")
@@ -109,21 +110,6 @@ async def gacha(ctx):
             embed_weapon = cfg.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
             await ctx.send(embed=embed_weapon)
 
-def set_default_cooldown(ctx):
-    id_user = ctx.message.author.id
-    default_time = datetime(1970,1,1)
-    coolkids = {
-        "gacha" : default_time,
-    }
-    cfg.user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": coolkids}})
-
-def set_cooldown_now(ctx, cooldown_type, data_user_cooldown):
-    id_user = ctx.message.author.id
-    for i in data_user_cooldown:
-        if i == cooldown_type:
-            data_user_cooldown[i] = datetime.utcnow()
-    cfg.user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": data_user_cooldown}})
-
 def get_random_weapon(weapon_type):
     rarity_int = random.randint(1,100)
     if rarity_int > 98 and weapon_type["Exclusive"] != None:
@@ -138,54 +124,5 @@ def get_random_weapon(weapon_type):
         return random.choice(weapon_type["Select"]), "Select"
     else:
         return weapon_type["Default"][0], "Default"
-
-@bot.command()
-async def add(ctx, left: int, right: int):
-    """Adds two numbers together."""
-    await ctx.send(left + right)
-
-@bot.command()
-async def roll(ctx, dice: str):
-    """Rolls a dice in NdN format."""
-    try:
-        rolls, limit = map(int, dice.split('d'))
-    except Exception:
-        await ctx.send('Format has to be in NdN!')
-        return
-    except discord.ext.commands.errors.MissingRequiredArgument:
-        await ctx.send('Error no argument')
-        return
-
-    result = ', '.join(str(random.randint(1, limit)) for r in range(rolls))
-    await ctx.send('rolled {0}'.format(result))
-
-@bot.command(description='For when you wanna settle the score some other way')
-async def choose(ctx, *choices: str):
-    """Chooses between multiple choices."""
-    await ctx.send(random.choice(choices))
-
-@bot.command()
-async def repeat(ctx, times: int, content='repeating...'):
-    """Repeats a message multiple times."""
-    for i in range(times):
-        await ctx.send(content)
-
-@bot.command()
-async def joined(ctx, member: discord.Member):
-    """Says when a member joined."""
-    await ctx.send('{0.name} joined in {0.joined_at}'.format(member))
-
-@bot.group()
-async def cool(ctx):
-    """Says if a user is cool.
-    In reality this just checks if a subcommand is being invoked.
-    """
-    if ctx.invoked_subcommand is None:
-        await ctx.send('No, {0.subcommand_passed} is not cool'.format(ctx))
-
-@cool.command(name='bot')
-async def _bot(ctx):
-    """Is the bot cool?"""
-    await ctx.send('Yes, the bot is cool.')
 
 bot.run(cfg.token)
