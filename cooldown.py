@@ -6,6 +6,7 @@ def set_default_cooldown(ctx):
     default_time = datetime(1970,1,1)
     coolkids = {
         "gacha" : default_time,
+        "daily" : default_time
     }
     cfg.user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": coolkids}})
 

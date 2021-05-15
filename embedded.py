@@ -55,10 +55,15 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
     id_user = ctx.message.author.id
     time_now = datetime.utcnow()
     time_diff_gacha = (time_now - data_user_cooldown["gacha"]).total_seconds()
+    time_diff_daily = (time_now - data_user_cooldown["daily"]).total_seconds()
     if time_diff_gacha > 86400 :
         time_diff_gacha_string = "`READY`"
     else :
         time_diff_gacha_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
+    if time_diff_daily > 86400 :
+        time_diff_daily_string = "`READY`"
+    else :
+        time_diff_daily_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
     user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"]
     owned_agents = ""
     if len(user_agents) > 0:
@@ -72,5 +77,5 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
     embed.set_author(name=author, icon_url=author_ava)
     embed.add_field(name='Point', value=point, inline=True)
     embed.add_field(name='Owned', value=owned_agents, inline=False)
-    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nGoblok \t:", inline=False)
+    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nDaily \t:" + time_diff_daily_string, inline=False)
     return embed

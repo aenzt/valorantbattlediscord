@@ -125,4 +125,25 @@ def get_random_weapon(weapon_type):
     else:
         return weapon_type["Default"][0], "Default"
 
+@bot.command()
+async def daily(ctx):
+    id_user = ctx.message.author.id
+    data_user_query = cfg.user_coll.find_one({"_id" : id_user})
+    time_now = datetime.utcnow()
+    if data_user_query == None:
+        await ctx.send("You must register first!, `?register`")
+    else:
+        data_user_cooldowns = data_user_query['cooldowns']   
+        for i in data_user_cooldowns:
+            if i == "daily" :
+                time_diff = (time_now - data_user_cooldowns[i]).total_seconds()
+                if time_diff<86400 :
+                    await ctx.send("Still in Cooldown, Wait " + str(int(24 - time_diff/3600)) + " hours " + str(int((60 - time_diff/60)%60)) + " minutes")
+                    return
+        cd.set_cooldown_now(ctx, "daily", data_user_cooldowns)
+        point_user = data_user_query["points"]
+        new_point_user = point_user + 5
+        cfg.user_coll.update_one({'_id': id_user}, { "$set": {"points": new_point_user}})
+        await ctx.send("Successfully claimed daily reward, got 5 points")
+
 bot.run(cfg.token)
