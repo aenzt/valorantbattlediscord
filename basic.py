@@ -1,26 +1,11 @@
 # This example requires the 'members' privileged intents
 
 import discord
-from discord import colour
-from discord.activity import Activity
 from discord.ext import commands
 import random
-import pymongo
-from pymongo import MongoClient 
-import configparser
 from datetime import datetime
-
-config = configparser.ConfigParser()
-config.read('config.ini')
-token = config.get('auth', 'discordtoken')
-mongosrv = config.get('auth', 'mongosrv')
-
-cluster = MongoClient(mongosrv, tls=True, tlsAllowInvalidCertificates=True)
-db = cluster['ValorantBot']
-collection = db['agent']
-user_coll = db['user']
-weapons = db['weapons']
-ranks = ['Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Immortal', 'Radiant']
+import config as cfg
+import embedded as emb
 
 intents = discord.Intents.default()
 intents.members = True
@@ -39,7 +24,7 @@ async def on_ready():
 async def register(ctx):
     id_user = ctx.message.author.id
     name_user = ctx.message.author.name
-    if user_coll.count_documents({'_id': id_user }, limit = 1) != 1:
+    if cfg.user_coll.count_documents({'_id': id_user }, limit = 1) != 1:
         user = {
         "_id" : id_user,
         "name" : name_user,
@@ -47,7 +32,7 @@ async def register(ctx):
         "agents" : [],
         "cooldowns" : {}
         }
-        user_coll.insert_one(user)
+        cfg.user_coll.insert_one(user)
         set_default_cooldown(ctx)
         await ctx.send("Sucessfully Registered")
     else :
@@ -56,7 +41,7 @@ async def register(ctx):
 @bot.command()
 async def profile(ctx):
     id_user = ctx.message.author.id
-    data_user = user_coll.find_one({"_id" : id_user})
+    data_user = cfg.user_coll.find_one({"_id" : id_user})
     data_user_cooldowns = data_user['cooldowns'] 
     if data_user == None:
         await ctx.send("You must register first!")
@@ -66,13 +51,13 @@ async def profile(ctx):
         id_user = data_user['_id']
         
         author_ava = ctx.message.author.avatar_url
-        embed = makeembeduser(ctx, namauser, author_ava, point, data_user_cooldowns)
+        embed = emb.makeembeduser(ctx, namauser, author_ava, point, data_user_cooldowns)
         await ctx.send(embed=embed)
 
 @bot.command()
 async def gacha(ctx):
     id_user = ctx.message.author.id
-    data_user_query = user_coll.find_one({"_id" : id_user})
+    data_user_query = cfg.user_coll.find_one({"_id" : id_user})
     time_now = datetime.utcnow()
     if data_user_query == None:
         await ctx.send("You must register first!, `?register`")
@@ -88,14 +73,14 @@ async def gacha(ctx):
         roll = random.randint(1,100)
         if roll > 80: # Rolled an agent
             print("Rolled agent!")
-            judul_data = collection.aggregate([{"$sample":{"size":1}}])
+            judul_data = cfg.collection.aggregate([{"$sample":{"size":1}}])
             rating = random.randint(0,20)
             for result in judul_data :
                 judul = result['name']
                 ava_url = result['ava_URL']
                 tipe = result['type']
             rank = 0
-            embed = makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
+            embed = emb.makeembedagent(ctx, judul, ava_url, rating, tipe, rank)
             data_user_new = data_user_query["agents"]   
             add_agent = True
             agent_idx = 0
@@ -108,20 +93,20 @@ async def gacha(ctx):
                 await ctx.send(embed=embed)
                 data_user_new.append({"name": result['name'],"rating": rating, "rank": rank})
             else:
-                embed_dupe = make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
+                embed_dupe = embed.make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
                 if data_user_new[agent_idx]["rank"] < 7:
                     data_user_new[agent_idx]["rank"] += 1 
-                    embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + ranks[data_user_new[agent_idx]["rank"]] + "."
+                    embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + cfg.ranks[data_user_new[agent_idx]["rank"]] + "."
                 else:
                     embed_dupe.description = "Congratulations! Your " + judul + " has already \nreached the highest rank.\n (kasih vp atau apa gitu idk)."
                 await ctx.send(embed=embed_dupe)
-            user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
+            cfg.user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
         else: # Rolled a weapon
             print("Rolled weapon!")
-            weapon_type = weapons.aggregate([{"$sample":{"size":1}}])
+            weapon_type = cfg.weapons.aggregate([{"$sample":{"size":1}}])
             weapon_type = list(weapon_type)[0]
             weapon, rarity = get_random_weapon(weapon_type)
-            embed_weapon = make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
+            embed_weapon = cfg.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
             await ctx.send(embed=embed_weapon)
 
 def set_default_cooldown(ctx):
@@ -130,14 +115,14 @@ def set_default_cooldown(ctx):
     coolkids = {
         "gacha" : default_time,
     }
-    user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": coolkids}})
+    cfg.user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": coolkids}})
 
 def set_cooldown_now(ctx, cooldown_type, data_user_cooldown):
     id_user = ctx.message.author.id
     for i in data_user_cooldown:
         if i == cooldown_type:
             data_user_cooldown[i] = datetime.utcnow()
-    user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": data_user_cooldown}})
+    cfg.user_coll.update_one({'_id': id_user}, { "$set": {"cooldowns": data_user_cooldown}})
 
 def get_random_weapon(weapon_type):
     rarity_int = random.randint(1,100)
@@ -153,79 +138,6 @@ def get_random_weapon(weapon_type):
         return random.choice(weapon_type["Select"]), "Select"
     else:
         return weapon_type["Default"][0], "Default"
-
-def make_embed_weapon(ctx, weapon_type, weapon_name, img_url, rarity):
-    embed = discord.Embed(
-        title=weapon_type,
-        colour = discord.Colour.blue()
-    )
-    author = ctx.message.author.name
-    author_ava = ctx.message.author.avatar_url
-
-    embed.set_footer(text="©Valorant BattleBot")
-    embed.set_image(url=img_url)
-    embed.set_author(name=author, icon_url=author_ava)
-    embed.add_field(name='Skin', value=weapon_name, inline=True)
-    embed.add_field(name='Rarity', value=rarity, inline=True)
-    return embed
-
-def make_embed_dupe(ctx, judul, ava_url, rating, tipe, rank):
-    embed=discord.Embed(title=judul+"\n`(Duplicate Received)`",colour = discord.Colour.blue())
-    embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.avatar_url)
-    embed.set_image(url = ava_url)
-    embed.set_footer(text="©Valorant BattleBot")
-    #tiga line di bawah untuk nampilin stats agent nya menurut gw mending gk usah tapi idk
-    #embed.add_field(name='Rating', value=rating)
-    #embed.add_field(name='Rank', value=ranks[rank])
-    #embed.add_field(name='Type', value=tipe)
-    return embed
-
-def makeembedagent(ctx, judul, ava_url, rating, tipe, rank):
-    embed = discord.Embed(
-        title=judul,
-        colour = discord.Colour.blue()
-    )
-    author = ctx.message.author.name
-    author_ava = ctx.message.author.avatar_url
-    rank_string = ranks[rank]
-
-    embed.set_footer(text="©Valorant BattleBot")
-    embed.set_image(url=ava_url)
-    embed.set_author(name=author, icon_url=author_ava)
-    embed.add_field(name='Rating', value=rating, inline=True)
-    embed.add_field(name='Rank', value=rank_string, inline=True)
-    embed.add_field(name='Type', value=tipe, inline=True)
-    return embed
-
-def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
-    embed = discord.Embed(
-        title=name,
-        colour = discord.Colour.blue()
-    )
-    author = ctx.message.author.name
-    author_ava = ctx.message.author.avatar_url
-    id_user = ctx.message.author.id
-    time_now = datetime.utcnow()
-    time_diff_gacha = (time_now - data_user_cooldown["gacha"]).total_seconds()
-    if time_diff_gacha > 86400 :
-        time_diff_gacha_string = "`READY`"
-    else :
-        time_diff_gacha_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
-    user_agents = user_coll.find_one({"_id" : id_user})["agents"]
-    owned_agents = ""
-    if len(user_agents) > 0:
-        for i in user_agents:    
-            owned_agents += i["name"] + " [" + str(i["rating"]) + "] " + "`" + ranks[i["rank"]] + "`\n"
-    else: 
-        owned_agents = "This user has no agents!"
-
-    embed.set_footer(text="©Valorant BattleBot")
-    embed.set_image(url=user_url)
-    embed.set_author(name=author, icon_url=author_ava)
-    embed.add_field(name='Point', value=point, inline=True)
-    embed.add_field(name='Owned', value=owned_agents, inline=False)
-    embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nGoblok \t:", inline=False)
-    return embed
 
 @bot.command()
 async def add(ctx, left: int, right: int):
@@ -276,4 +188,4 @@ async def _bot(ctx):
     """Is the bot cool?"""
     await ctx.send('Yes, the bot is cool.')
 
-bot.run(token)
+bot.run(cfg.token)
