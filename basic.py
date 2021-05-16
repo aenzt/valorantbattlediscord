@@ -94,7 +94,7 @@ async def gacha(ctx):
                 await ctx.send(embed=embed)
                 data_user_new.append({"name": result['name'],"rating": rating, "rank": rank})
             else:
-                embed_dupe = embed.make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
+                embed_dupe = emb.make_embed_dupe(ctx, judul, ava_url, data_user_new[agent_idx]["rating"], tipe, data_user_new[agent_idx]["rank"])
                 if data_user_new[agent_idx]["rank"] < 7:
                     data_user_new[agent_idx]["rank"] += 1 
                     embed_dupe.description = "Congratulations! Your " + judul + " has ranked \nup to " + cfg.ranks[data_user_new[agent_idx]["rank"]] + "."
@@ -147,8 +147,8 @@ async def daily(ctx):
         await ctx.send("Successfully claimed daily reward, got 5 points")
 
 @bot.command()
-async def list(ctx):
-    embed = emb.makeembedlist(ctx)
-    await ctx.send(embed=embed)
+async def listing(ctx):
+    embed_list = emb.makeembedlist(ctx)
+    await ctx.send(embed=embed_list)
 
 bot.run(cfg.token)

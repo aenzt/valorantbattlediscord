@@ -62,7 +62,7 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
     if time_diff_daily > 86400 :
         time_diff_daily_string = "`READY`"
     else :
-        time_diff_daily_string = str(int(24 - time_diff_gacha/3600)) + "h" + str(int((60 - time_diff_gacha/60)%60)) + "m"
+        time_diff_daily_string = str(int(24 - time_diff_daily/3600)) + "h" + str(int((60 - time_diff_daily/60)%60)) + "m"
 
     embed.set_footer(text="©Valorant BattleBot")
     embed.set_image(url=user_url)
