@@ -1,5 +1,3 @@
-# This example requires the 'members' privileged intents
-
 import discord
 from discord.ext import commands
 import random
@@ -31,7 +29,8 @@ async def register(ctx):
         "name" : name_user,
         "points" : 0,
         "agents" : [],
-        "cooldowns" : {}
+        "cooldowns" : {},
+        "weapons" : [],
         }
         cfg.user_coll.insert_one(user)
         cd.set_default_cooldown(ctx)
@@ -107,6 +106,12 @@ async def gacha(ctx):
             weapon_type = cfg.weapons.aggregate([{"$sample":{"size":1}}])
             weapon_type = list(weapon_type)[0]
             weapon, rarity = get_random_weapon(weapon_type)
+            weapon_data = {
+                "_id" : weapon_type["_id"],
+                "name" : weapon ["name"],
+                "rarity" : rarity
+            }
+            cfg.user_coll.update_one({'_id' : id_user}, {'$push' : {"weapons" : weapon_data}}, upsert=True)
             embed_weapon = emb.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
             await ctx.send(embed=embed_weapon)
 
@@ -142,13 +147,19 @@ async def daily(ctx):
                     return
         cd.set_cooldown_now(ctx, "daily", data_user_cooldowns)
         point_user = data_user_query["points"]
-        new_point_user = point_user + 5
+        random_point = random.randint(1, 5)
+        new_point_user = point_user + random_point
         cfg.user_coll.update_one({'_id': id_user}, { "$set": {"points": new_point_user}})
-        await ctx.send("Successfully claimed daily reward, got 5 points")
+        await ctx.send("Successfully claimed daily reward, got " + str(random_point) + " .Current point : " + str(new_point_user))
 
 @bot.command()
-async def listing(ctx):
-    embed_list = emb.makeembedlist(ctx)
-    await ctx.send(embed=embed_list)
+async def agentlist(ctx):
+    embed_agent_list = emb.makeembedagentlist(ctx)
+    await ctx.send(embed=embed_agent_list)
+
+@bot.command()
+async def weaponlist(ctx):
+    embed_weapon_list = emb.makeembedweaponlist(ctx)
+    await ctx.send(embed=embed_weapon_list)
 
 bot.run(cfg.token)

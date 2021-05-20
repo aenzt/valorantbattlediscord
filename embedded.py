@@ -70,21 +70,46 @@ def makeembeduser(ctx, name, user_url, point, data_user_cooldown):
     embed.add_field(name='Cooldowns',value="Gacha \t: " + time_diff_gacha_string + "\nDaily \t:" + time_diff_daily_string, inline=False)
     return embed
 
-def makeembedlist(ctx):
+def makeembedagentlist(ctx):
     author = ctx.message.author.name
     embed = discord.Embed(
-        title=author + "- Collection",
+        title=author + "- Agent Collection",
         colour = discord.Colour.blue()
     )
     id_user = ctx.message.author.id
     user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"]
     owned_agents = ""
+    count_ang = 0
     if len(user_agents) > 0:
         for i in user_agents:    
-            owned_agents += i["name"] + " [" + str(i["rating"]) + "] " + "`" + cfg.ranks[i["rank"]] + "`\n"
-            embed.add_field(name='Owned', value=owned_agents, inline=True)
+            owned_agents += str(count_ang) + " - " + i["name"] + " [" + str(i["rating"]) + "] " + "`" + cfg.ranks[i["rank"]] + "`\n"
+            count_ang += 1
+        embed.add_field(name='Owned', value=owned_agents, inline=True)
     else: 
         owned_agents = "This user has no agents!"
         embed.add_field(name='Owned', value=owned_agents, inline=True)
     embed.set_footer(text="©Valorant BattleBot")
+    count_ang = 0
+    return embed
+
+def makeembedweaponlist(ctx):
+    author = ctx.message.author.name
+    embed = discord.Embed(
+        title=author + "- Weapon Collection",
+        colour = discord.Colour.blue()
+    )
+    id_user = ctx.message.author.id
+    user_weapons = cfg.user_coll.find_one({"_id" : id_user})["weapons"]
+    owned_weapons = ""
+    count_ang = 0
+    if len(user_weapons) > 0:
+        for i in user_weapons:    
+            owned_weapons += str(count_ang) + " - " + i["name"] + " [" + str(i["rarity"]) + "] " + "\n"
+            count_ang+= 1
+        embed.add_field(name='Owned', value=owned_weapons, inline=True)
+    else: 
+        owned_weapons = "This user has no agents!"
+        embed.add_field(name='Owned', value=owned_weapons, inline=True)
+    embed.set_footer(text="©Valorant BattleBot")
+    count_ang=0
     return embed
