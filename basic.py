@@ -31,6 +31,7 @@ async def register(ctx):
         "agents" : [],
         "cooldowns" : {},
         "weapons" : [],
+        "teams_comp" : []
         }
         cfg.user_coll.insert_one(user)
         cd.set_default_cooldown(ctx)
@@ -63,12 +64,12 @@ async def gacha(ctx):
         await ctx.send("You must register first!, `?register`")
     else:
         data_user_cooldowns = data_user_query['cooldowns']   
-        for i in data_user_cooldowns:
-            if i == "gacha" :
-                time_diff = (time_now - data_user_cooldowns[i]).total_seconds()
-                if time_diff<86400 :
-                    await ctx.send("Still in Cooldown, Wait " + str(int(24 - time_diff/3600)) + " hours " + str(int((60 - time_diff/60)%60)) + " minutes")
-                    return
+        # for i in data_user_cooldowns:
+        #     if i == "gacha" :
+        #         time_diff = (time_now - data_user_cooldowns[i]).total_seconds()
+        #         if time_diff<86400 :
+        #             await ctx.send("Still in Cooldown, Wait " + str(int(24 - time_diff/3600)) + " hours " + str(int((60 - time_diff/60)%60)) + " minutes")
+        #             return
         cd.set_cooldown_now(ctx, "gacha", data_user_cooldowns)
         roll = random.randint(1,100)
         if roll > 80: # Rolled an agent
@@ -103,6 +104,8 @@ async def gacha(ctx):
             cfg.user_coll.update_one({'_id': id_user}, { "$set": {"agents": data_user_new}})
         else: # Rolled a weapon
             print("Rolled weapon!")
+            add_weapon = True
+            data_weapon_new = data_user_query['weapons']
             weapon_type = cfg.weapons.aggregate([{"$sample":{"size":1}}])
             weapon_type = list(weapon_type)[0]
             weapon, rarity = get_random_weapon(weapon_type)
@@ -111,10 +114,21 @@ async def gacha(ctx):
                 "name" : weapon ["name"],
                 "rarity" : rarity
             }
-            cfg.user_coll.update_one({'_id' : id_user}, {'$push' : {"weapons" : weapon_data}}, upsert=True)
-            embed_weapon = emb.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
-            await ctx.send(embed=embed_weapon)
-
+            for i in range(len(data_weapon_new)):
+                if data_weapon_new[i]["name"] == weapon_data['name']:
+                    add_weapon = False
+                    break
+            if add_weapon :
+                cfg.user_coll.update_one({'_id' : id_user}, {'$push' : {"weapons" : weapon_data}}, upsert=True)
+                embed_weapon = emb.make_embed_weapon(ctx, weapon_type["_id"], weapon["name"],weapon["img_url"],rarity)
+                await ctx.send(embed=embed_weapon)
+            else :
+                point_random_dupe = random.randint(3, 10)
+                point_user = data_user_query["points"]
+                new_point = point_user + point_random_dupe
+                cfg.user_coll.update_one({'_id': id_user}, { "$set": {"points": new_point}})
+                await ctx.send("`Found duplicated weapon`, converted to " + str(point_random_dupe) + " points. Current points : " + str(new_point))
+                
 def get_random_weapon(weapon_type):
     rarity_int = random.randint(1,100)
     if rarity_int > 98 and weapon_type["Exclusive"] != None:
@@ -161,5 +175,49 @@ async def agentlist(ctx):
 async def weaponlist(ctx):
     embed_weapon_list = emb.makeembedweaponlist(ctx)
     await ctx.send(embed=embed_weapon_list)
+
+@bot.command()
+async def team(ctx):
+    id_user = ctx.message.author.id
+    data_user = cfg.user_coll.find_one({"_id" : id_user})
+    data_user_teams = data_user['teams_comp']
+    if data_user_teams == [] :
+        await ctx.send("No team yet, made one via `?maketeam`")
+
+@bot.command()
+async def maketeam(ctx):
+    id_user = ctx.message.author.id
+    data_user = cfg.user_coll.find_one({"_id" : id_user})
+    data_user_teams = data_user['teams_comp']
+    if data_user == None :
+        await ctx.send("You must register first!, `?register`")
+    else:
+        if data_user_teams != [] :
+            await ctx.send("You already formed a team, edit your team via `?editteam`")
+        else:
+            embed_weapon_team_list = emb.makeembedagentlist_1(ctx)
+            await ctx.send(embed=embed_weapon_team_list)
+            valid = False
+            id_count =0
+            while valid == False :    
+                def check(m):
+                    return ctx.author == m.author #To make sure it is the only message author is getting
+                msg = await bot.wait_for('message', timeout=60.0, check=check)
+                msg = str(msg.content.lower())
+                msg = msg.split(",")
+                if len(msg) > 5 :
+                    await ctx.send("Max Agent is 5, input again")
+                else:
+                    valid = True
+            if valid == True :
+                for i in msg :
+                    user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"][int(i)]
+                    data_input = {
+                        "name" : user_agents['name'],
+                        "rating" : user_agents['rating'],
+                        "rank" : user_agents['rank'],
+                    }
+                    cfg.user_coll.update_one({'_id' : id_user}, {'$push' : {'teams_comp': data_input}})
+                await ctx.send("Succesfully made your team")    
 
 bot.run(cfg.token)

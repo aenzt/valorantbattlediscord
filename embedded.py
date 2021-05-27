@@ -92,6 +92,29 @@ def makeembedagentlist(ctx):
     count_ang = 0
     return embed
 
+def makeembedagentlist_1(ctx):
+    author = ctx.message.author.name
+    embed = discord.Embed(
+        title=author + "- Agent Collection",
+        colour = discord.Colour.blue()
+    )
+    id_user = ctx.message.author.id
+    user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"]
+    owned_agents = ""
+    count_ang = 0
+    if len(user_agents) > 0:
+        for i in user_agents:    
+            owned_agents += str(count_ang) + " - " + i["name"] + " [" + str(i["rating"]) + "] " + "`" + cfg.ranks[i["rank"]] + "`\n"
+            count_ang += 1
+        embed.add_field(name='Owned', value=owned_agents, inline=True)
+    else: 
+        owned_agents = "This user has no agents!"
+        embed.add_field(name='Owned', value=owned_agents, inline=True)
+    embed.add_field(name="Make Your Team", value="Reply with your agent id divided by comma without space", inline= False)
+    embed.set_footer(text="©Valorant BattleBot")
+    count_ang = 0
+    return embed
+
 def makeembedweaponlist(ctx):
     author = ctx.message.author.name
     embed = discord.Embed(
@@ -113,3 +136,4 @@ def makeembedweaponlist(ctx):
     embed.set_footer(text="©Valorant BattleBot")
     count_ang=0
     return embed
+  
