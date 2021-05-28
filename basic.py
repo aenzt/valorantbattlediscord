@@ -195,7 +195,7 @@ async def maketeam(ctx):
         if data_user_teams != [] :
             await ctx.send("You already formed a team, edit your team via `?editteam`")
         else:
-            embed_weapon_team_list = emb.makeembedagentlist_1(ctx)
+            embed_weapon_team_list, count_ag = emb.makeembedagentlist_1(ctx)
             await ctx.send(embed=embed_weapon_team_list)
             valid = False
             id_count =0
@@ -207,16 +207,20 @@ async def maketeam(ctx):
                 msg = msg.split(",")
                 if len(msg) > 5 :
                     await ctx.send("Max Agent is 5, input again")
+                elif len(msg) > count_ag :
+                    await ctx.send("Agent not owned, input again")
                 else:
                     valid = True
             if valid == True :
                 for i in msg :
                     user_agents = cfg.user_coll.find_one({"_id" : id_user})["agents"][int(i)]
                     data_input = {
+                        "_id" : id_count,
                         "name" : user_agents['name'],
                         "rating" : user_agents['rating'],
                         "rank" : user_agents['rank'],
                     }
+                    id_count+=1
                     cfg.user_coll.update_one({'_id' : id_user}, {'$push' : {'teams_comp': data_input}})
                 await ctx.send("Succesfully made your team")    
 

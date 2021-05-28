@@ -112,8 +112,7 @@ def makeembedagentlist_1(ctx):
         embed.add_field(name='Owned', value=owned_agents, inline=True)
     embed.add_field(name="Make Your Team", value="Reply with your agent id divided by comma without space", inline= False)
     embed.set_footer(text="©Valorant BattleBot")
-    count_ang = 0
-    return embed
+    return embed, count_ang
 
 def makeembedweaponlist(ctx):
     author = ctx.message.author.name
